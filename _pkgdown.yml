@@ -1,0 +1,43 @@
+url: https://queelius.github.io/maskedhaz/
+
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left:  [intro, reference, news]
+    right: [search, github]
+  components:
+    github:
+      icon: fa-github
+      href: https://github.com/queelius/maskedhaz
+
+reference:
+  - title: "Model Constructor"
+    desc: "Create masked-cause series system likelihood models"
+    contents:
+      - dfr_series_md
+      - is_dfr_series_md
+      - print.dfr_series_md
+
+  - title: "Likelihood Inference"
+    desc: "Log-likelihood, score, Hessian, and MLE fitting"
+    contents:
+      - loglik.dfr_series_md
+      - score.dfr_series_md
+      - hess_loglik.dfr_series_md
+      - fit.dfr_series_md
+
+  - title: "Data Generation"
+    desc: "Simulate masked series system failure data"
+    contents:
+      - rdata.dfr_series_md
+
+  - title: "Diagnostics"
+    desc: "Cause-of-failure probabilities and model inspection"
+    contents:
+      - conditional_cause_probability
+      - cause_probability
+      - assumptions.dfr_series_md
+      - ncomponents.dfr_series_md
+      - component_hazard.dfr_series_md
