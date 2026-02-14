@@ -49,7 +49,7 @@ component_hazard.dfr_series_md <- function(x, j, ...) {
 # =========================================================================
 # Series MD concept generics
 #
-# These generics mirror those in likelihood.model.series.md but are
+# These generics mirror those in maskedcauses but are
 # defined here to avoid a hard dependency. dfr_series_md inherits
 # "series_md" in its class hierarchy so dispatch works correctly.
 # =========================================================================

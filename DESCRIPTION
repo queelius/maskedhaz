@@ -27,7 +27,7 @@ Imports:
     stats
 Suggests:
     testthat (>= 3.0.0),
-    likelihood.model.series.md,
+    maskedcauses,
     knitr,
     rmarkdown
 VignetteBuilder: knitr
@@ -37,4 +37,4 @@ Remotes:
     github::queelius/dfr.dist,
     github::queelius/algebraic.dist,
     github::queelius/likelihood.model,
-    github::queelius/likelihood.model.series.md
+    github::queelius/maskedcauses

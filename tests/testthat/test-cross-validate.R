@@ -1,10 +1,10 @@
 test_that("loglik matches exp_series_md_c1_c2_c3 on exact data", {
-  skip_if_not_installed("likelihood.model.series.md")
+  skip_if_not_installed("maskedcauses")
 
   par <- c(0.1, 0.2, 0.3)
 
   # Generate data using the reference model
-  ref_model <- likelihood.model.series.md::exp_series_md_c1_c2_c3()
+  ref_model <- maskedcauses::exp_series_md_c1_c2_c3()
   ref_rdata <- likelihood.model::rdata(ref_model)
   set.seed(42)
   df <- ref_rdata(theta = par, n = 200, tau = Inf, p = 0.5)
@@ -24,11 +24,11 @@ test_that("loglik matches exp_series_md_c1_c2_c3 on exact data", {
 })
 
 test_that("loglik matches exp_series_md_c1_c2_c3 on censored data", {
-  skip_if_not_installed("likelihood.model.series.md")
+  skip_if_not_installed("maskedcauses")
 
   par <- c(0.1, 0.2, 0.3)
 
-  ref_model <- likelihood.model.series.md::exp_series_md_c1_c2_c3()
+  ref_model <- maskedcauses::exp_series_md_c1_c2_c3()
   ref_rdata <- likelihood.model::rdata(ref_model)
   set.seed(123)
   df <- ref_rdata(theta = par, n = 300, tau = 5, p = 0.3)
@@ -46,11 +46,11 @@ test_that("loglik matches exp_series_md_c1_c2_c3 on censored data", {
 })
 
 test_that("MLE point estimates match reference on same dataset", {
-  skip_if_not_installed("likelihood.model.series.md")
+  skip_if_not_installed("maskedcauses")
 
   par <- c(0.1, 0.2, 0.3)
 
-  ref_model <- likelihood.model.series.md::exp_series_md_c1_c2_c3()
+  ref_model <- maskedcauses::exp_series_md_c1_c2_c3()
   ref_rdata <- likelihood.model::rdata(ref_model)
   set.seed(42)
   df <- ref_rdata(theta = par, n = 500, tau = Inf, p = 0.5)
@@ -74,10 +74,10 @@ test_that("MLE point estimates match reference on same dataset", {
 })
 
 test_that("loglik matches at multiple parameter values", {
-  skip_if_not_installed("likelihood.model.series.md")
+  skip_if_not_installed("maskedcauses")
 
   # Generate shared dataset
-  ref_model <- likelihood.model.series.md::exp_series_md_c1_c2_c3()
+  ref_model <- maskedcauses::exp_series_md_c1_c2_c3()
   ref_rdata <- likelihood.model::rdata(ref_model)
   set.seed(77)
   df <- ref_rdata(theta = c(0.2, 0.3, 0.5), n = 100, tau = Inf, p = 0.4)
@@ -104,11 +104,11 @@ test_that("loglik matches at multiple parameter values", {
 })
 
 test_that("loglik matches 2-component exponential reference", {
-  skip_if_not_installed("likelihood.model.series.md")
+  skip_if_not_installed("maskedcauses")
 
   par <- c(0.5, 1.0)
 
-  ref_model <- likelihood.model.series.md::exp_series_md_c1_c2_c3()
+  ref_model <- maskedcauses::exp_series_md_c1_c2_c3()
   ref_rdata <- likelihood.model::rdata(ref_model)
   set.seed(99)
   df <- ref_rdata(theta = par, n = 150, tau = 3, p = 0.5)
