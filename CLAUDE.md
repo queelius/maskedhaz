@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Package Overview
 
-`dfr.lik.series.md` provides likelihood-based inference for series systems with masked component cause of failure, using arbitrary dynamic failure rate (DFR) component distributions. Given series system data where the causing component is uncertain (masked), it computes log-likelihood, score, Hessian, and MLE for the component parameters.
+`maskedhaz` provides likelihood-based inference for series systems with masked component cause of failure, using arbitrary dynamic failure rate (DFR) component distributions. Given series system data where the causing component is uncertain (masked), it computes log-likelihood, score, Hessian, and MLE for the component parameters.
 
 The package decouples from closed-form assumptions: any `dfr_dist` component distribution works, with numerical integration for censored observations and `numDeriv` for derivatives.
 
@@ -24,8 +24,8 @@ Always run `devtools::document()` after modifying roxygen2 comments. NAMESPACE i
 ## Dependencies
 
 **Required (Imports):**
-- `dfr.dist.series` — Series system distributions (Phase 1)
-- `dfr.dist` — DFR component distributions and constructors
+- `serieshaz` — Series system distributions (Phase 1)
+- `flexhaz` — DFR component distributions and constructors
 - `algebraic.dist` — Distribution interface generics
 - `likelihood.model` — Likelihood model interface + `fisher_mle` class
 - `generics` — Generic function infrastructure (`fit`)
@@ -33,7 +33,7 @@ Always run `devtools::document()` after modifying roxygen2 comments. NAMESPACE i
 - `stats` — `integrate`, `optim`, `runif`
 
 **Optional (Suggests):**
-- `likelihood.model.series.md` — Cross-validation against closed-form exponential/Weibull
+- `maskedcauses` — Cross-validation against closed-form exponential/Weibull
 - `testthat`, `knitr`, `rmarkdown`
 
 ## Architecture
@@ -67,7 +67,7 @@ Candidate sets: Boolean columns `x1, x2, ..., xm` (TRUE = component j is a candi
 
 ### Closure-Returning Pattern
 
-All methods follow the two-step pattern from `dfr.dist`:
+All methods follow the two-step pattern from `flexhaz`:
 1. Call method on model → returns closure
 2. Call closure with data and parameters
 
@@ -117,7 +117,7 @@ Tests in `tests/testthat/` (10 files):
 - `test-fit.R` — Parameter recovery, convergence, fisher_mle methods
 - `test-rdata.R` — Data structure, censoring, masking, custom columns
 - `test-censoring.R` — Left/interval/right contributions, analytical match
-- `test-cross-validate.R` — Against `likelihood.model.series.md` (skipped if not installed)
+- `test-cross-validate.R` — Against `maskedcauses` (skipped if not installed)
 - `test-methods.R` — assumptions, ncomponents, conditional/marginal cause probabilities
 - `test-utils.R` — decode_candidate_matrix, extract_md_data, generate_masked_series_data
 

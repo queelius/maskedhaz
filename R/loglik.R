@@ -28,7 +28,7 @@
 #'
 #' @importFrom likelihood.model loglik
 #' @importFrom algebraic.dist hazard
-#' @importFrom dfr.dist cum_haz
+#' @importFrom flexhaz cum_haz
 #' @importFrom stats integrate
 #' @method loglik dfr_series_md
 #' @export

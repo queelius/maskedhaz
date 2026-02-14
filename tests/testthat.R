@@ -1,4 +1,4 @@
 library(testthat)
-library(dfr.lik.series.md)
+library(maskedhaz)
 
-test_check("dfr.lik.series.md")
+test_check("maskedhaz")

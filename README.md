@@ -1,24 +1,23 @@
-# dfr.lik.series.md
+# maskedhaz
 
 Masked-Cause Likelihood Models for DFR Series Systems
 
-**dfr.lik.series.md** provides likelihood-based inference for series systems with masked component cause of failure. A series system fails when any component fails, but the causing component may be unknown (masked). Given candidate sets satisfying conditions C1-C2-C3, this package computes log-likelihood, score, Hessian, and MLE for the component parameters.
+**maskedhaz** provides likelihood-based inference for series systems with masked component cause of failure. A series system fails when any component fails, but the causing component may be unknown (masked). Given candidate sets satisfying conditions C1-C2-C3, this package computes log-likelihood, score, Hessian, and MLE for the component parameters.
 
-Unlike closed-form implementations, this package works with **arbitrary** component hazard functions from `dfr.dist` — Weibull, Gompertz, log-logistic, or any custom `dfr_dist`.
+Unlike closed-form implementations, this package works with **arbitrary** component hazard functions from `flexhaz` — Weibull, Gompertz, log-logistic, or any custom `dfr_dist`.
 
 ## Installation
 
-Install the development version from GitHub:
+Install from [r-universe](https://queelius.r-universe.dev):
 
 ```r
-# install.packages("remotes")
-remotes::install_github("queelius/dfr.lik.series.md")
+install.packages("maskedhaz", repos = "https://queelius.r-universe.dev")
 ```
 
 ## Quick Start
 
 ```r
-library(dfr.lik.series.md)
+library(maskedhaz)
 
 # Three-component exponential series system
 model <- dfr_series_md(components = list(
@@ -85,17 +84,17 @@ Candidate sets are Boolean columns `x1, x2, ..., xm`.
 - **MLE fitting**: `fit()` returns `fisher_mle` with `coef()`, `vcov()`, `confint()`
 - **Data generation**: `rdata()` simulates masked series system data
 - **Diagnostics**: Conditional and marginal cause-of-failure probabilities
-- **Cross-validated**: Matches closed-form results from `likelihood.model.series.md`
+- **Cross-validated**: Matches closed-form results from `maskedcauses`
 
 ## Ecosystem
 
-dfr.lik.series.md builds on:
+maskedhaz builds on:
 
-- [dfr.dist.series](https://github.com/queelius/dfr.dist.series) — Series system distributions
-- [dfr.dist](https://github.com/queelius/dfr.dist) — Dynamic failure rate distributions
+- [serieshaz](https://github.com/queelius/serieshaz) — Series system distributions
+- [flexhaz](https://github.com/queelius/flexhaz) — Dynamic failure rate distributions
 - [likelihood.model](https://github.com/queelius/likelihood.model) — Likelihood model interface
 - [algebraic.dist](https://github.com/queelius/algebraic.dist) — Distribution generics
 
 Cross-validated against:
 
-- [likelihood.model.series.md](https://github.com/queelius/likelihood.model.series.md) — Closed-form exponential/Weibull series likelihoods
+- [maskedcauses](https://github.com/queelius/maskedcauses) — Closed-form exponential/Weibull series likelihoods

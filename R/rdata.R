@@ -2,7 +2,7 @@
 #'
 #' Returns a function that generates random masked series system data from the
 #' model's data-generating process (DGP). Uses
-#' \code{\link[dfr.dist.series]{sample_components}} for component lifetimes
+#' \code{\link[serieshaz]{sample_components}} for component lifetimes
 #' and applies right-censoring and masking satisfying C1-C2-C3.
 #'
 #' @param model A \code{\link{dfr_series_md}} object.
@@ -12,7 +12,7 @@
 #'   candidate sets.
 #'
 #' @importFrom likelihood.model rdata
-#' @importFrom dfr.dist.series sample_components
+#' @importFrom serieshaz sample_components
 #' @method rdata dfr_series_md
 #' @export
 rdata.dfr_series_md <- function(model, ...) {

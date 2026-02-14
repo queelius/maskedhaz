@@ -1,9 +1,9 @@
 #' @keywords internal
 #' @details
-#' The \pkg{dfr.lik.series.md} package provides likelihood-based inference for
+#' The \pkg{maskedhaz} package provides likelihood-based inference for
 #' series systems with masked component cause of failure, using arbitrary
 #' dynamic failure rate (DFR) component distributions from
-#' \pkg{dfr.dist.series}.
+#' \pkg{serieshaz}.
 #'
 #' A series system fails when any component fails, but the causing component
 #' may be unknown (masked). Given candidate sets satisfying conditions C1, C2,
@@ -24,20 +24,20 @@
 #'
 #' @seealso
 #' \code{\link{dfr_series_md}} for the constructor,
-#' \code{\link[dfr.dist.series]{dfr_dist_series}} for the series distribution,
+#' \code{\link[serieshaz]{dfr_dist_series}} for the series distribution,
 #' \code{\link[likelihood.model]{loglik}} for the likelihood interface
 "_PACKAGE"
 
 #' Masked-Cause Likelihood Model for DFR Series Systems
 #'
 #' Constructs a likelihood model for series systems with masked component cause
-#' of failure, where components are arbitrary \code{\link[dfr.dist]{dfr_dist}}
+#' of failure, where components are arbitrary \code{\link[flexhaz]{dfr_dist}}
 #' distributions. Supports exact, right-censored, left-censored, and
 #' interval-censored observations with candidate sets satisfying C1-C2-C3.
 #'
-#' @param series A \code{\link[dfr.dist.series]{dfr_dist_series}} object.
+#' @param series A \code{\link[serieshaz]{dfr_dist_series}} object.
 #'   Ignored if \code{components} is provided.
-#' @param components A list of \code{\link[dfr.dist]{dfr_dist}} objects. If
+#' @param components A list of \code{\link[flexhaz]{dfr_dist}} objects. If
 #'   provided, a \code{dfr_dist_series} is built from these.
 #' @param par Optional concatenated parameter vector.
 #' @param n_par Optional integer vector of parameter counts per component.
@@ -73,8 +73,8 @@
 #'
 #' @examples
 #' \donttest{
-#' library(dfr.dist)
-#' library(dfr.dist.series)
+#' library(flexhaz)
+#' library(serieshaz)
 #'
 #' # From components
 #' model <- dfr_series_md(components = list(
@@ -93,10 +93,10 @@
 #'
 #' @seealso
 #' \code{\link{is_dfr_series_md}} for the type predicate,
-#' \code{\link[dfr.dist.series]{dfr_dist_series}} for the series distribution,
+#' \code{\link[serieshaz]{dfr_dist_series}} for the series distribution,
 #' \code{\link[likelihood.model]{loglik}} for the likelihood interface
 #'
-#' @importFrom dfr.dist.series dfr_dist_series is_dfr_dist_series
+#' @importFrom serieshaz dfr_dist_series is_dfr_dist_series
 #' @export
 dfr_series_md <- function(series = NULL, components = NULL,
                           par = NULL, n_par = NULL,

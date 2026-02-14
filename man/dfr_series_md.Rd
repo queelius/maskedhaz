@@ -16,10 +16,10 @@ dfr_series_md(
 )
 }
 \arguments{
-\item{series}{A \code{\link[dfr.dist.series]{dfr_dist_series}} object.
+\item{series}{A \code{\link[serieshaz]{dfr_dist_series}} object.
 Ignored if \code{components} is provided.}
 
-\item{components}{A list of \code{\link[dfr.dist]{dfr_dist}} objects. If
+\item{components}{A list of \code{\link[flexhaz]{dfr_dist}} objects. If
 provided, a \code{dfr_dist_series} is built from these.}
 
 \item{par}{Optional concatenated parameter vector.}
@@ -42,7 +42,7 @@ An object of class
 }
 \description{
 Constructs a likelihood model for series systems with masked component cause
-of failure, where components are arbitrary \code{\link[dfr.dist]{dfr_dist}}
+of failure, where components are arbitrary \code{\link[flexhaz]{dfr_dist}}
 distributions. Supports exact, right-censored, left-censored, and
 interval-censored observations with candidate sets satisfying C1-C2-C3.
 }
@@ -68,8 +68,8 @@ the causing component is partially observed through candidate sets.
 }
 \examples{
 \donttest{
-library(dfr.dist)
-library(dfr.dist.series)
+library(flexhaz)
+library(serieshaz)
 
 # From components
 model <- dfr_series_md(components = list(
@@ -89,6 +89,6 @@ model2 <- dfr_series_md(series = sys)
 }
 \seealso{
 \code{\link{is_dfr_series_md}} for the type predicate,
-\code{\link[dfr.dist.series]{dfr_dist_series}} for the series distribution,
+\code{\link[serieshaz]{dfr_dist_series}} for the series distribution,
 \code{\link[likelihood.model]{loglik}} for the likelihood interface
 }

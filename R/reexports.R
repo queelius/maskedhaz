@@ -20,49 +20,49 @@ likelihood.model::rdata
 #' @export
 generics::fit
 
-# Re-exports from dfr.dist.series
-#' @importFrom dfr.dist.series dfr_dist_series is_dfr_dist_series ncomponents
+# Re-exports from serieshaz
+#' @importFrom serieshaz dfr_dist_series is_dfr_dist_series ncomponents
 #'   component component_hazard param_layout sample_components
 #' @export
-dfr.dist.series::dfr_dist_series
+serieshaz::dfr_dist_series
 
 #' @export
-dfr.dist.series::is_dfr_dist_series
+serieshaz::is_dfr_dist_series
 
 #' @export
-dfr.dist.series::ncomponents
+serieshaz::ncomponents
 
 #' @export
-dfr.dist.series::component
+serieshaz::component
 
 #' @export
-dfr.dist.series::component_hazard
+serieshaz::component_hazard
 
 #' @export
-dfr.dist.series::param_layout
+serieshaz::param_layout
 
 #' @export
-dfr.dist.series::sample_components
+serieshaz::sample_components
 
-# Re-exports from dfr.dist
-#' @importFrom dfr.dist dfr_exponential dfr_weibull dfr_gompertz
+# Re-exports from flexhaz
+#' @importFrom flexhaz dfr_exponential dfr_weibull dfr_gompertz
 #'   dfr_loglogistic cum_haz
 #' @export
-dfr.dist::dfr_exponential
+flexhaz::dfr_exponential
 
 #' @export
-dfr.dist::dfr_weibull
+flexhaz::dfr_weibull
 
 #' @export
-dfr.dist::dfr_gompertz
+flexhaz::dfr_gompertz
 
 #' @export
-dfr.dist::dfr_loglogistic
+flexhaz::dfr_loglogistic
 
 #' @export
-dfr.dist::cum_haz
+flexhaz::cum_haz
 
-# Re-exports from algebraic.dist (via dfr.dist.series)
+# Re-exports from algebraic.dist (via serieshaz)
 #' @importFrom algebraic.dist hazard surv cdf sampler params
 #' @export
 algebraic.dist::hazard

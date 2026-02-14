@@ -1,4 +1,4 @@
-Package: dfr.lik.series.md
+Package: maskedhaz
 Title: Masked-Cause Likelihood Models for DFR Series Systems
 Version: 0.1.0
 Authors@R: person("Alexander", "Towell", , "lex@metafunctor.com",
@@ -9,17 +9,17 @@ Description: Likelihood-based inference for series systems with masked
     MLE for masked data satisfying conditions C1, C2, C3 under general
     component hazard functions.
 License: GPL (>= 3)
-URL: https://github.com/queelius/dfr.lik.series.md,
-    https://queelius.github.io/dfr.lik.series.md/
-BugReports: https://github.com/queelius/dfr.lik.series.md/issues
+URL: https://github.com/queelius/maskedhaz,
+    https://queelius.github.io/maskedhaz/
+BugReports: https://github.com/queelius/maskedhaz/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Depends:
     R (>= 3.5.0)
 Imports:
-    dfr.dist.series,
-    dfr.dist,
+    serieshaz,
+    flexhaz,
     algebraic.dist,
     likelihood.model,
     generics,
@@ -33,8 +33,8 @@ Suggests:
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Remotes:
-    github::queelius/dfr.dist.series,
-    github::queelius/dfr.dist,
+    github::queelius/serieshaz,
+    github::queelius/flexhaz,
     github::queelius/algebraic.dist,
     github::queelius/likelihood.model,
     github::queelius/maskedcauses

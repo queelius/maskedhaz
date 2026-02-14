@@ -24,7 +24,7 @@ assumptions.dfr_series_md <- function(model, ...) {
 #' @param x A \code{\link{dfr_series_md}} object.
 #' @param ... Additional arguments (unused).
 #' @return Integer, the number of components.
-#' @importFrom dfr.dist.series ncomponents
+#' @importFrom serieshaz ncomponents
 #' @method ncomponents dfr_series_md
 #' @export
 ncomponents.dfr_series_md <- function(x, ...) {
@@ -38,7 +38,7 @@ ncomponents.dfr_series_md <- function(x, ...) {
 #' @param j Component index.
 #' @param ... Additional arguments passed to the closure.
 #' @return A closure computing component j's hazard.
-#' @importFrom dfr.dist.series component_hazard
+#' @importFrom serieshaz component_hazard
 #' @method component_hazard dfr_series_md
 #' @export
 component_hazard.dfr_series_md <- function(x, j, ...) {

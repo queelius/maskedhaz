@@ -1,6 +1,6 @@
-# Shared test helpers for dfr.lik.series.md
-library(dfr.dist)
-library(dfr.dist.series)
+# Shared test helpers for maskedhaz
+library(flexhaz)
+library(serieshaz)
 
 #' Create a 3-component exponential series model
 make_exp_model <- function(rates = c(0.1, 0.2, 0.3)) {

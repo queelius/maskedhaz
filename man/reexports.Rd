@@ -34,12 +34,12 @@ below to see their documentation.
 \describe{
   \item{algebraic.dist}{\code{\link[algebraic.dist]{hazard}}, \code{\link[algebraic.dist]{params}}, \code{\link[algebraic.dist]{sampler}}, \code{\link[algebraic.dist]{surv}}}
 
-  \item{dfr.dist}{\code{\link[dfr.dist]{cum_haz}}, \code{\link[dfr.dist]{dfr_exponential}}, \code{\link[dfr.dist]{dfr_gompertz}}, \code{\link[dfr.dist]{dfr_loglogistic}}, \code{\link[dfr.dist]{dfr_weibull}}}
-
-  \item{dfr.dist.series}{\code{\link[dfr.dist.series]{component}}, \code{\link[dfr.dist.series]{component_hazard}}, \code{\link[dfr.dist.series]{dfr_dist_series}}, \code{\link[dfr.dist.series]{is_dfr_dist_series}}, \code{\link[dfr.dist.series]{ncomponents}}, \code{\link[dfr.dist.series]{param_layout}}, \code{\link[dfr.dist.series]{sample_components}}}
+  \item{flexhaz}{\code{\link[flexhaz]{cum_haz}}, \code{\link[flexhaz]{dfr_exponential}}, \code{\link[flexhaz]{dfr_gompertz}}, \code{\link[flexhaz]{dfr_loglogistic}}, \code{\link[flexhaz]{dfr_weibull}}}
 
   \item{generics}{\code{\link[generics]{fit}}}
 
   \item{likelihood.model}{\code{\link[likelihood.model]{assumptions}}, \code{\link[likelihood.model]{hess_loglik}}, \code{\link[likelihood.model]{loglik}}, \code{\link[likelihood.model]{rdata}}, \code{\link[likelihood.model]{score}}}
+
+  \item{serieshaz}{\code{\link[serieshaz]{component}}, \code{\link[serieshaz]{component_hazard}}, \code{\link[serieshaz]{dfr_dist_series}}, \code{\link[serieshaz]{is_dfr_dist_series}}, \code{\link[serieshaz]{ncomponents}}, \code{\link[serieshaz]{param_layout}}, \code{\link[serieshaz]{sample_components}}}
 }}
 
