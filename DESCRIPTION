@@ -1,13 +1,15 @@
 Package: maskedhaz
-Title: Masked-Cause Likelihood Models for DFR Series Systems
+Title: Masked-Cause Likelihood Models for Series Systems with Arbitrary
+    Hazard Components
 Version: 0.1.0
 Authors@R: person("Alexander", "Towell", , "lex@metafunctor.com",
                   role = c("aut", "cre"))
 Description: Likelihood-based inference for series systems with masked
-    component cause of failure, using arbitrary dynamic failure rate (DFR)
+    component cause of failure, using arbitrary dynamic failure rate
     component distributions. Computes log-likelihood, score, Hessian, and
-    MLE for masked data satisfying conditions C1, C2, C3 under general
-    component hazard functions.
+    maximum likelihood estimates for masked data satisfying conditions
+    C1, C2, C3 under general component hazard functions. Implements the
+    'series_md' protocol defined in the 'maskedcauses' package.
 License: GPL (>= 3)
 URL: https://github.com/queelius/maskedhaz,
     https://queelius.github.io/maskedhaz/
@@ -34,9 +36,3 @@ Suggests:
     rmarkdown
 VignetteBuilder: knitr
 Config/testthat/edition: 3
-Remotes:
-    github::queelius/serieshaz,
-    github::queelius/flexhaz,
-    github::queelius/algebraic.dist,
-    github::queelius/likelihood.model,
-    github::queelius/maskedcauses
