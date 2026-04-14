@@ -11,16 +11,23 @@
 #'   that returns a data frame with columns for lifetime, observation type, and
 #'   candidate sets.
 #'
+#' @examples
+#' model <- dfr_series_md(components = list(
+#'   dfr_exponential(0.1), dfr_exponential(0.2)
+#' ))
+#' set.seed(1)
+#' df <- rdata(model)(theta = c(0.1, 0.2), n = 20, tau = 10, p = 0.3)
+#' head(df)
 #' @importFrom likelihood.model rdata
 #' @importFrom serieshaz sample_components
 #' @method rdata dfr_series_md
 #' @export
 rdata.dfr_series_md <- function(model, ...) {
   defaults <- extract_model_defaults(model)
+  series <- model$series
+  m <- series$m
 
   function(theta, n, tau = Inf, p = 0, ...) {
-    series <- model$series
-    m <- series$m
     if (any(theta <= 0)) stop("All parameters must be positive")
     if (p < 0 || p > 1) stop("p must be in [0, 1]")
 

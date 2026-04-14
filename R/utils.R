@@ -1,11 +1,17 @@
 # Null-coalescing operator
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
+# Valid observation types for the omega column.
+OMEGA_EXACT    <- "exact"
+OMEGA_RIGHT    <- "right"
+OMEGA_LEFT     <- "left"
+OMEGA_INTERVAL <- "interval"
+OMEGA_VALID    <- c(OMEGA_EXACT, OMEGA_RIGHT, OMEGA_LEFT, OMEGA_INTERVAL)
+
 #' Decode candidate set matrix from Boolean columns
 #'
 #' Extracts Boolean columns matching the pattern `prefix + digits` from a
-#' data frame and assembles them into a logical matrix. This replaces
-#' `md.tools::md_decode_matrix()` to avoid the dependency.
+#' data frame and assembles them into a logical matrix.
 #'
 #' @param df data frame containing candidate set columns
 #' @param prefix column name prefix (default `"x"`)
@@ -63,12 +69,11 @@ extract_md_data <- function(df, lifetime, omega, candset,
   m <- ncol(cmat)
 
   omega_vals <- as.character(df[[omega]])
-  valid_types <- c("exact", "right", "left", "interval")
-  invalid <- setdiff(unique(omega_vals), valid_types)
+  invalid <- setdiff(unique(omega_vals), OMEGA_VALID)
   if (length(invalid) > 0) {
     stop(
       "invalid omega values: ", paste(invalid, collapse = ", "),
-      ". Must be one of: ", paste(valid_types, collapse = ", ")
+      ". Must be one of: ", paste(OMEGA_VALID, collapse = ", ")
     )
   }
 
@@ -76,21 +81,31 @@ extract_md_data <- function(df, lifetime, omega, candset,
   if (!is.null(lifetime_upper) && lifetime_upper %in% colnames(df))
     t_upper <- df[[lifetime_upper]]
 
-  # Validate observations
-  for (i in seq_len(n)) {
-    has_cand <- any(cmat[i, ])
-    if (omega_vals[i] == "exact" && !has_cand)
-      stop("C1 violated: exact observation with empty candidate set at row ", i)
-    if (omega_vals[i] == "left" && !has_cand)
-      stop("left-censored observation must have non-empty candidate set at row ", i)
-    if (omega_vals[i] == "interval") {
-      if (!has_cand)
-        stop("interval-censored observation must have non-empty candidate set at row ", i)
-      if (is.null(t_upper))
-        stop("interval-censored observations require a '",
-             lifetime_upper %||% "t_upper", "' column")
-      if (t_upper[i] <= df[[lifetime]][i])
-        stop("interval-censored observation requires t_upper > t at row ", i)
+  has_cand <- rowSums(cmat) > 0
+  is_exact    <- omega_vals == OMEGA_EXACT
+  is_left     <- omega_vals == OMEGA_LEFT
+  is_interval <- omega_vals == OMEGA_INTERVAL
+
+  if (any(is_exact & !has_cand)) {
+    bad <- which(is_exact & !has_cand)[1]
+    stop("C1 violated: exact observation with empty candidate set at row ", bad)
+  }
+  if (any(is_left & !has_cand)) {
+    bad <- which(is_left & !has_cand)[1]
+    stop("left-censored observation must have non-empty candidate set at row ", bad)
+  }
+  if (any(is_interval)) {
+    if (any(is_interval & !has_cand)) {
+      bad <- which(is_interval & !has_cand)[1]
+      stop("interval-censored observation must have non-empty candidate set at row ", bad)
+    }
+    if (is.null(t_upper))
+      stop("interval-censored observations require a '",
+           lifetime_upper %||% "t_upper", "' column")
+    t_vec <- df[[lifetime]]
+    if (any(is_interval & !(t_upper > t_vec), na.rm = TRUE)) {
+      bad <- which(is_interval & !(t_upper > t_vec))[1]
+      stop("interval-censored observation requires t_upper > t at row ", bad)
     }
   }
 
@@ -118,31 +133,22 @@ extract_md_data <- function(df, lifetime, omega, candset,
 generate_masked_series_data <- function(comp_lifetimes, n, m, tau, p,
                                         default_lifetime, default_omega,
                                         default_candset) {
-  sys_lifetime <- apply(comp_lifetimes, 1, min)
-  failed_comp <- apply(comp_lifetimes, 1, which.min)
+  sys_lifetime <- do.call(pmin.int, c(lapply(seq_len(m), function(j) comp_lifetimes[, j])))
+  failed_comp <- max.col(-comp_lifetimes, ties.method = "first")
 
   is_exact <- sys_lifetime <= tau
   sys_lifetime <- pmin(sys_lifetime, tau)
+  omega_vals <- ifelse(is_exact, OMEGA_EXACT, OMEGA_RIGHT)
 
-  omega_vals <- ifelse(is_exact, "exact", "right")
-
-  candset <- matrix(FALSE, nrow = n, ncol = m)
-  for (i in seq_len(n)) {
-    if (is_exact[i]) {
-      candset[i, failed_comp[i]] <- TRUE
-      if (p > 0 && m > 1) {
-        others <- seq_len(m)[-failed_comp[i]]
-        candset[i, others] <- runif(length(others)) < p
-      }
-    }
-  }
+  candset <- if (p == 0) matrix(FALSE, nrow = n, ncol = m)
+             else matrix(runif(n * m) < p, nrow = n, ncol = m)
+  candset[cbind(seq_len(n), failed_comp)] <- TRUE
+  candset[!is_exact, ] <- FALSE
 
   df <- data.frame(sys_lifetime, omega_vals, stringsAsFactors = FALSE)
   names(df) <- c(default_lifetime, default_omega)
-
   for (j in seq_len(m)) {
     df[[paste0(default_candset, j)]] <- candset[, j]
   }
-
   df
 }

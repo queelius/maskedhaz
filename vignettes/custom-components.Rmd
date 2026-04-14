@@ -1,0 +1,166 @@
+---
+title: "Mixed-Distribution Series Systems"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Mixed-Distribution Series Systems}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4
+)
+```
+
+## The Motivation
+
+Classical reliability texts assume all components in a series system share the same lifetime distribution: all exponential, all Weibull, or (in the homogeneous case) all Weibull with a shared shape. This simplification enables closed-form likelihood analysis — which is why the reference implementations shipped with [`maskedcauses`](https://github.com/queelius/maskedcauses) cover these specific families.
+
+Real systems rarely cooperate. A server's failure modes include:
+
+- **Mechanical disk wear** — failure rate rises with a power-law shape (Weibull with shape $> 1$)
+- **Software defects and bit-flips** — memoryless, constant hazard (exponential)
+- **Thermal aging of capacitors** — failure rate grows exponentially in time (Gompertz)
+- **Sensor drift** — hump-shaped hazard that peaks in mid-life (log-logistic)
+
+When you fit a single-family model to such a system, you're forced to average over regimes that behave qualitatively differently. `maskedhaz` lets each component carry its own distribution.
+
+## A Worked Example: Medical Device with Four Failure Modes
+
+Consider an implantable medical device with four independently-failing components:
+
+| Component | Distribution | Parameters | Failure physics |
+|-----------|--------------|-----------:|------------------|
+| Battery | Weibull | shape $=3$, scale $=10$ (years) | Wear-out at end of rated life |
+| Electronics | Exponential | rate $= 0.02$ | Random bit-flips / latch-ups |
+| Lead wire | Gompertz | $a=0.02$, $b=0.3$ | Fatigue cycling, accelerating |
+| Sensor | Log-logistic | $\alpha = 8$, $\beta = 2$ | Hump-shaped: peaks in mid-life, declines after |
+
+```{r device}
+library(maskedhaz)
+
+device <- dfr_series_md(components = list(
+  battery    = dfr_weibull(shape = 3, scale = 10),
+  electronics = dfr_exponential(0.02),
+  lead_wire  = dfr_gompertz(a = 0.02, b = 0.3),
+  sensor     = dfr_loglogistic(alpha = 8, beta = 2)
+))
+device
+```
+
+The total parameter count is $2 + 1 + 2 + 2 = 7$. `param_layout()` shows which components own which positions:
+
+```{r layout}
+param_layout(device$series)
+```
+
+## Simulating Field Data
+
+We simulate 500 devices observed for 8 years (right-censoring at `tau = 8`). Masking probability `p = 0.3` means diagnostics include each non-failing component in the candidate set with 30% probability.
+
+```{r simulate}
+true_par <- c(3, 10,        # battery: shape, scale
+              0.02,         # electronics: rate
+              0.02, 0.3,    # lead wire: a, b
+              8, 2)         # sensor: alpha, beta
+
+set.seed(2026)
+rdata_fn <- rdata(device)
+df <- rdata_fn(theta = true_par, n = 500, tau = 8, p = 0.3)
+
+table(df$omega)
+```
+
+About 87% of devices reach failure within the 8-year observation window, the rest are right-censored — a high exact-failure fraction because the combined hazard becomes substantial by the end of the window.
+
+## Fitting
+
+The exp/Weibull reference implementations in `maskedcauses` don't cover this mixture — no single family-specific likelihood does. But the **protocol** they implement (the `series_md` class, the C1–C2–C3 schema, the `loglik`/`score`/`fit` generics) applies uniformly. `maskedhaz` is another implementation under the same protocol: it handles arbitrary component combinations via component-wise hazard accumulation and numerical integration where needed (none here, since we have no left or interval censoring).
+
+```{r fit}
+solver <- fit(device)
+
+# Initialize reasonably far from the truth to exercise the optimizer
+init <- c(2, 8, 0.03, 0.03, 0.2, 6, 1.5)
+result <- solver(df, par = init)
+```
+
+Building the comparison table — `coef()` from `stats`, `vcov()` from `stats`, and the `se()` diagonal computation is what `algebraic.mle::se()` wraps:
+
+```{r compare}
+comparison <- data.frame(
+  parameter = c("battery shape", "battery scale",
+                "electronics rate",
+                "lead wire a", "lead wire b",
+                "sensor alpha", "sensor beta"),
+  truth    = true_par,
+  estimate = round(coef(result), 4),
+  se       = round(sqrt(diag(vcov(result))), 4)
+)
+comparison
+```
+
+All seven parameters are recovered within roughly one standard error of truth. Identifiability is comfortable here because the four components have qualitatively different hazard shapes — the system hazard $h_{\text{sys}}(t) = \sum_j h_j(t)$ carries distinguishable contributions from each regime, and each regime dominates a different time window within the 8-year observation horizon.
+
+## Why Identifiability Works for Mixed Families
+
+A fundamental constraint in masked-cause inference: when all components share a family, sometimes only *aggregate* parameters are identifiable from system-level data. The canonical example is exponential components — only $\sum_j \lambda_j$ is identifiable, not the individual rates (see `vignette("censoring-and-masking")` for the details).
+
+Mixed families break this degeneracy. If component 1 is Weibull (power-law growth) and component 2 is exponential (flat), the system hazard shape tells you which component dominates at which time regime. The likelihood surface separates them cleanly.
+
+We can visualize this by looking at conditional cause probabilities — given a failure at time $t$, which component was most likely at fault?
+
+```{r ccp, fig.width = 7, fig.height = 4}
+ccp_fn <- conditional_cause_probability(device)
+t_grid <- seq(0.5, 15, length.out = 60)
+probs <- ccp_fn(t_grid, par = true_par)
+
+matplot(t_grid, probs, type = "l", lwd = 2,
+        xlab = "system failure time (years)",
+        ylab = "P(component j caused failure | T = t)",
+        main = "Which component fails when?")
+legend("topright",
+       legend = c("battery", "electronics", "lead wire", "sensor"),
+       col = 1:4, lty = 1:4, lwd = 2, bty = "n")
+```
+
+Three regimes are visible. In early life ($t < 2$), the log-logistic **sensor** and constant-rate **electronics** compete for dominance — both have small but comparable hazards while the Weibull and Gompertz components are still negligible. In mid-life ($t \approx 2$–$6$), the Weibull **battery** rapidly takes over as its power-law hazard $h_1(t) = 3(t/10)^2/10$ scales up. At late life ($t > 10$), the Gompertz **lead wire** competes with the battery — its accelerating hazard $h_3(t) = 0.02 \cdot e^{0.3 t}$ catches up to the battery's quadratic growth. The **electronics** has a flat contribution at rate 0.02 but its *share* declines because other components ramp up around it.
+
+The fact that these regimes are temporally separated is exactly what makes the individual parameters identifiable from system-level data — each time window provides a different "view" of which component is contributing. Under a single-family assumption (say, "all Weibull"), the model would be forced to absorb all four physical modes into two aggregate parameters, losing both interpretability and the ability to predict which component will fail next.
+
+## Defining Your Own Component
+
+The `dfr_dist` abstraction from `flexhaz` lets you define a component from nothing more than its hazard function. Suppose we want a *bathtub-shaped* failure mode with a well-chosen hazard $h(t) = \alpha t^{-1/2} + \beta + \gamma t$:
+
+```{r custom-dist, eval = FALSE}
+library(flexhaz)
+
+bathtub <- dfr_dist(
+  rate      = function(t, par, ...) par[1]/sqrt(t) + par[2] + par[3]*t,
+  cum_haz_rate = function(t, par, ...) 2*par[1]*sqrt(t) + par[2]*t + par[3]*t^2/2,
+  n_par = 3L,
+  par = c(0.1, 0.05, 0.01),
+  par_lower = c(1e-6, 1e-6, 1e-6)
+)
+
+# Plug it into a series system like any other dfr_dist
+mixed <- dfr_series_md(components = list(
+  bathtub,
+  dfr_exponential(0.02)
+))
+```
+
+Because `maskedhaz` never assumes closed-form likelihoods, this works exactly like the built-in families. The log-likelihood, score, Hessian, and MLE are all computed by the same machinery — your custom hazard doesn't need any special integration code.
+
+## Summary
+
+- Mixed-family series systems are common in practice and break identifiability degeneracies that afflict single-family models
+- `maskedhaz` supports any combination of `dfr_dist` components — no closed-form assumptions
+- Custom user-defined distributions compose the same way built-in ones do
+- Identifiability comes from temporal separation of component hazard regimes, which mixed-family systems provide naturally

@@ -22,3 +22,11 @@ model's data-generating process (DGP). Uses
 \code{\link[serieshaz]{sample_components}} for component lifetimes
 and applies right-censoring and masking satisfying C1-C2-C3.
 }
+\examples{
+model <- dfr_series_md(components = list(
+  dfr_exponential(0.1), dfr_exponential(0.2)
+))
+set.seed(1)
+df <- rdata(model)(theta = c(0.1, 0.2), n = 20, tau = 10, p = 0.3)
+head(df)
+}

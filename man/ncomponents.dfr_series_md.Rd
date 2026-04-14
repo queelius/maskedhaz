@@ -17,3 +17,9 @@ Integer, the number of components.
 \description{
 Number of components in a masked-cause DFR series system
 }
+\examples{
+model <- dfr_series_md(components = list(
+  dfr_exponential(0.1), dfr_exponential(0.2), dfr_exponential(0.3)
+))
+ncomponents(model)   # 3
+}

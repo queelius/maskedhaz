@@ -1,0 +1,210 @@
+---
+title: "Hypothesis Testing on Fitted Models"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Hypothesis Testing on Fitted Models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4
+)
+```
+
+## Why a Separate Vignette?
+
+`vignette("maskedhaz")` establishes that `fit(model)(df, par)` returns a `fisher_mle` object, which realises both the `mle_fit` concept (from `algebraic.mle`) and the `algebraic.dist` distribution interface. That gives us `coef`, `vcov`, `confint`, `se`, `bias`, `observed_fim`, `score_val`, and a `logLik` method, all through generics the `maskedhaz` package itself never implemented.
+
+This vignette takes the next step: **everything `hypothesize` does works on these fits directly.** No bridge code, no wrappers, just generics flowing through generics. We'll work through five questions a statistician would actually ask about a real analysis, using a different test machinery for each.
+
+```{r libs}
+library(maskedhaz)
+library(hypothesize)
+library(algebraic.mle)
+```
+
+## The Scenario
+
+We generate data from a 2-component Weibull series system (true shapes are 2, not 1) and pretend we don't know the true family. We'll fit both an exponential-series model (simpler, 2 params) and a Weibull-series model (fuller, 4 params) to the same data, then use hypothesis tests to decide which is justified.
+
+```{r data}
+set.seed(42)
+
+true_model <- dfr_series_md(components = list(
+  dfr_weibull(shape = 2, scale = 5),
+  dfr_weibull(shape = 2, scale = 8)
+))
+df <- rdata(true_model)(theta = c(2, 5, 2, 8), n = 300, tau = 10, p = 0.3)
+table(df$omega)
+```
+
+```{r fit-both}
+null_model <- dfr_series_md(
+  components = list(dfr_exponential(), dfr_exponential()),
+  n_par = c(1L, 1L)
+)
+alt_model <- dfr_series_md(
+  components = list(dfr_weibull(), dfr_weibull()),
+  n_par = c(2L, 2L)
+)
+
+fit_null <- suppressWarnings(fit(null_model)(df, par = c(0.1, 0.1)))
+fit_alt  <- suppressWarnings(fit(alt_model)(df, par = c(1.5, 4, 1.5, 6)))
+
+coef(fit_null)
+coef(fit_alt)
+```
+
+## Question 1: Is the Exponential Family Adequate?
+
+The exponential-series model is nested inside the Weibull-series model (it's the boundary case where all shapes equal 1). A likelihood ratio test compares the two.
+
+```{r lrt}
+# lrt() accepts logLik objects directly and derives the dof difference
+# from the `df` attribute attached by likelihood.model::logLik.fisher_mle
+lrt_result <- lrt(logLik(fit_null), logLik(fit_alt))
+lrt_result
+```
+
+The test statistic is $2(\ell_{\text{alt}} - \ell_{\text{null}})$, asymptotically $\chi^2$ with dof equal to the parameter-count difference (here, 2 extra Weibull shape parameters). The p-value is vanishingly small — the exponential family is rejected decisively.
+
+Notice that we never wrote any maskedhaz-specific glue code. `logLik()` is a standard R generic, `hypothesize::lrt()` consumes its output. The `maskedhaz` package didn't have to know anything about `hypothesize`, and vice versa.
+
+## Question 2: Is Each Individual Shape Significantly Different from 1?
+
+The LRT rejects the global hypothesis "both shapes equal 1 simultaneously," but says nothing about each shape separately. For that we use Wald tests — one per shape parameter — feeding them the estimate and standard error directly.
+
+```{r wald-per-param}
+est <- coef(fit_alt)
+se_vec <- se(fit_alt)         # from algebraic.mle
+
+# Parameter layout: (shape1, scale1, shape2, scale2) = positions 1, 2, 3, 4
+w_shape1 <- wald_test(est[1], se = se_vec[1], null_value = 1)
+w_shape2 <- wald_test(est[3], se = se_vec[3], null_value = 1)
+
+c(shape1_pval = pval(w_shape1),
+  shape2_pval = pval(w_shape2))
+```
+
+Both individual tests reject `shape = 1` at any conventional level. The MLEs are about 1.8 and 2.3, the standard errors are small enough to distinguish both from 1 cleanly.
+
+## Question 3: Controlling Family-Wise Error
+
+If we plan to report these two tests as a family (making decisions only when the family-wise error rate is bounded), we should adjust. `adjust_pval()` accepts a list of tests and returns a list of tests with the corrected p-values stored.
+
+```{r adjust}
+adjusted <- adjust_pval(list(w_shape1, w_shape2), method = "bonferroni")
+c(shape1_adj = pval(adjusted[[1]]),
+  shape2_adj = pval(adjusted[[2]]))
+```
+
+With only two tests, Bonferroni simply doubles each p-value; both remain far below 0.05. The point is that `adjust_pval()` returns `hypothesis_test` objects — they continue to compose with the rest of the algebra. You could hand these adjusted tests into `is_significant_at()`, `invert_test()`, or anything else that expects a test.
+
+## Question 4: Composite Hypotheses
+
+A different but related question: is the *conjunction* "shape1 = 1 AND shape2 = 1" supported by the data? Two natural ways to build a test:
+
+**Intersection-union via max p-value**. `intersection_test()` takes the max of the individual p-values. If the max is small, both individual tests rejected, so the intersection rejects too.
+
+```{r intersection}
+comp_intersection <- intersection_test(w_shape1, w_shape2)
+pval(comp_intersection)
+```
+
+**Fisher's method for combining independent p-values**. Under the conjunction null, `-2 \sum \log p_i` follows $\chi^2_{2k}$. `fisher_combine()` implements this.
+
+```{r fisher-combine}
+comp_fisher <- fisher_combine(w_shape1, w_shape2)
+comp_fisher
+```
+
+Both agree that the data contradicts the composite exponential null, but with different levels of sensitivity (Fisher's method uses more of the information in moderate p-values; max-p is conservative when some tests are strong and others weak).
+
+## Question 5: A Score Test Without Refitting
+
+The LRT and Wald tests both required fitting the full Weibull model. A **score test** can evaluate a null hypothesis using only the null model and the full-model score/Hessian machinery — no alternative-fit needed. This is useful when the alternative is expensive to fit or not globally identified.
+
+For the composite null "all shapes = 1, scales from the null MLE," we evaluate the score and observed Fisher information of the Weibull-series model at the null parameter vector.
+
+```{r score-test}
+# Map the exp-series MLE into the Weibull parameter space:
+# (shape = 1, scale = 1/rate) for each component
+null_in_alt <- c(1, 1/coef(fit_null)[1],
+                 1, 1/coef(fit_null)[2])
+
+# Score and observed Fisher info of the ALT model at the null point
+s_at_null <- score(alt_model)(df, par = null_in_alt)
+I_at_null <- -hess_loglik(alt_model)(df, par = null_in_alt)
+
+s_at_null
+
+sc <- score_test(s_at_null, I_at_null, null_value = null_in_alt)
+sc
+```
+
+Two things worth pointing out. First, the test statistic $s^\top I^{-1} s$ and its $\chi^2_4$ reference distribution come out large — the null is rejected strongly, agreeing with the LRT and Wald results. Second, look at the *components* of the score vector: positions 1 and 3 (the shape entries) are far from zero, while positions 2 and 4 (the scales) are nearly zero. The likelihood gradient at the null "wants" to move shape up, not scale; the null MLE already got the scales roughly right for a shape-1 fit. That's diagnostic information the LRT doesn't give you for free.
+
+## Question 6: Confidence Intervals by Test Inversion
+
+A $100(1-\alpha)\%$ confidence set for a parameter is, by definition, the set of null values the test *fails* to reject at level $\alpha$. `invert_test()` automates this inversion over a user-supplied grid.
+
+```{r invert-test}
+# Build a Wald test parameterised by shape1's null value
+wald_for_shape1 <- function(theta0) {
+  wald_test(est[1], se = se_vec[1], null_value = theta0)
+}
+
+ci_shape1 <- invert_test(wald_for_shape1, grid = seq(1.0, 3.0, by = 0.01), alpha = 0.05)
+c(lower = lower(ci_shape1), upper = upper(ci_shape1))
+```
+
+Compare with the direct Wald CI:
+
+```{r direct-ci}
+confint(wald_test(est[1], se = se_vec[1], null_value = est[1]))
+```
+
+They agree to within the grid resolution. For a Wald test this redundancy is by design (the two are algebraically identical). The real power of `invert_test()` shows when you plug in a *different* test-fn — e.g., a likelihood-ratio test with a profile likelihood — to get a **non-Wald** confidence region whose shape is driven by the actual likelihood surface rather than the quadratic approximation. That's expensive (requires refitting under each grid point) but fully composable: the test-fn just has to return a `hypothesis_test`.
+
+## Cross-Implementation Check
+
+Because `maskedhaz` and `maskedcauses` both implement the `series_md` protocol and both return `fisher_mle` objects, the hypothesis-testing code is literally *identical* across them. We can verify by fitting the same data with `maskedcauses`' closed-form exponential-series likelihood and running the same LRT.
+
+```{r cross-check, eval = requireNamespace("maskedcauses", quietly = TRUE)}
+library(maskedcauses)
+
+fit_null_mc <- suppressWarnings(
+  likelihood.model::fit(exp_series_md_c1_c2_c3())(df, par = c(0.1, 0.1))
+)
+
+# LRT using maskedcauses null fit + maskedhaz alt fit, across two packages
+lrt_cross <- lrt(logLik(fit_null_mc), logLik(fit_alt))
+c(
+  lrt_same_package = pval(lrt_result),
+  lrt_cross_package = pval(lrt_cross)
+)
+```
+
+The p-values agree. The test statistic, dof, and conclusion are the same because both packages compute the same likelihood (just via different numerical strategies). `hypothesize` doesn't know or care which package the logLik came from — it only needs the `logLik` generic with the `df` attribute. That's the protocol in action.
+
+## Summary
+
+We ran six distinct hypothesis-testing analyses on the same fitted model, each using a different test machinery:
+
+| Question | Test | `hypothesize` function | Input from `maskedhaz` fit |
+|----------|------|-----------------------|---------------------------|
+| Is the simpler model enough? | LRT | `lrt()` | `logLik(fit_null)`, `logLik(fit_alt)` |
+| Is each parameter different from the null value? | Wald | `wald_test()` | `coef(fit)`, `se(fit)` |
+| Family-wise error control | Multiple testing | `adjust_pval()` | list of Wald tests |
+| Is the composite null rejected? | Intersection-union, Fisher | `intersection_test()`, `fisher_combine()` | individual tests |
+| Alt-model-free null rejection | Score | `score_test()` | `score()`, `hess_loglik()` from the alt model at the null point |
+| Confidence interval as rejection set | Test inversion | `invert_test()` | a test-fn parameterised by the null value |
+
+None of this is `maskedhaz`-specific. Everything works through the `logLik` / `coef` / `vcov` / `se` / `score_val` / `observed_fim` generics that `algebraic.mle` and `likelihood.model` wired up long before `hypothesize` existed. The layered design lets each package do its one job well; capabilities compose transparently.

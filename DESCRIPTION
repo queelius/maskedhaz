@@ -22,12 +22,14 @@ Imports:
     flexhaz,
     algebraic.dist,
     likelihood.model,
+    maskedcauses,
     generics,
     numDeriv,
     stats
 Suggests:
     testthat (>= 3.0.0),
-    maskedcauses,
+    algebraic.mle,
+    hypothesize,
     knitr,
     rmarkdown
 VignetteBuilder: knitr

@@ -19,3 +19,12 @@ the Hessian matrix.
 Returns a Hessian function computed via numerical differentiation of the
 log-likelihood using \code{\link[numDeriv]{hessian}}.
 }
+\examples{
+model <- dfr_series_md(components = list(
+  dfr_exponential(0.1), dfr_exponential(0.2)
+))
+set.seed(1)
+df <- rdata(model)(theta = c(0.1, 0.2), n = 50, tau = 10, p = 0.3)
+H_fn <- hess_loglik(model)
+H_fn(df, par = c(0.1, 0.2))
+}

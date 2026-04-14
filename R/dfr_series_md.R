@@ -124,6 +124,12 @@ dfr_series_md <- function(series = NULL, components = NULL,
 #'
 #' @param x Object to test.
 #' @return Logical scalar.
+#' @examples
+#' model <- dfr_series_md(components = list(
+#'   dfr_exponential(0.1), dfr_exponential(0.2)
+#' ))
+#' is_dfr_series_md(model)    # TRUE
+#' is_dfr_series_md(42)       # FALSE
 #' @export
 is_dfr_series_md <- function(x) {
   inherits(x, "dfr_series_md")
@@ -135,21 +141,23 @@ is_dfr_series_md <- function(x) {
 #' @param x A \code{dfr_series_md} object.
 #' @param ... Additional arguments (unused).
 #' @return Invisibly returns \code{x}.
+#' @examples
+#' model <- dfr_series_md(components = list(
+#'   dfr_weibull(shape = 2, scale = 100),
+#'   dfr_exponential(0.05)
+#' ))
+#' print(model)
 #' @export
 print.dfr_series_md <- function(x, ...) {
-  m <- x$series$m
+  series <- x$series
+  m <- series$m
   cat(sprintf("Masked-cause likelihood model (%d-component series)\n", m))
   for (j in seq_len(m)) {
-    np <- x$series$n_par[j]
-    par_j <- if (!is.null(x$series$par)) {
-      x$series$par[x$series$layout[[j]]]
-    }
-    par_str <- if (!is.null(par_j)) {
+    par_j <- if (is.null(series$par)) NULL else series$par[series$layout[[j]]]
+    par_str <- if (is.null(par_j)) "unknown" else
       paste(format(par_j, digits = 4), collapse = ", ")
-    } else {
-      "unknown"
-    }
-    cat(sprintf("  Component %d: %d param(s) [%s]\n", j, np, par_str))
+    cat(sprintf("  Component %d: %d param(s) [%s]\n",
+                j, series$n_par[j], par_str))
   }
   cat("Data columns:", x$lifetime, "(lifetime),",
       x$omega, "(type),", x$candset, "* (candidates)\n")

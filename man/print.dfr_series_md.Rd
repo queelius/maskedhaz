@@ -17,3 +17,10 @@ Invisibly returns \code{x}.
 \description{
 Print method for dfr_series_md
 }
+\examples{
+model <- dfr_series_md(components = list(
+  dfr_weibull(shape = 2, scale = 100),
+  dfr_exponential(0.05)
+))
+print(model)
+}

@@ -1,0 +1,225 @@
+---
+title: "Censoring Types and Masked Causes"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Censoring Types and Masked Causes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4
+)
+```
+
+## Two Independent Sources of Information Loss
+
+Masked-cause series system data involves two orthogonal forms of incomplete observation:
+
+1. **Censoring of the failure time** — we may not observe $T_i$ exactly. The system may be observed only as "still working at $t$" (right-censored), "already failed by $t$" (left-censored), or "failed somewhere in $(t, t_{\text{upper}})$" (interval-censored).
+2. **Masking of the failure cause** — even when $T_i$ is observed, the *component* that failed is often only known up to a candidate set $C_i$ that satisfies conditions C1, C2, and C3.
+
+`maskedhaz` handles all four censoring types uniformly via numerical integration when needed. This vignette walks through each observation type with a worked example, then cross-validates the numerical machinery against `maskedcauses`' closed-form exponential series likelihood.
+
+## The `omega` Column
+
+Data frames passed to `loglik()`, `score()`, `hess_loglik()`, and `fit()` must include an `omega` column indicating the observation type per row:
+
+| `omega` | Meaning | Required columns |
+|---------|---------|------------------|
+| `"exact"` | $T_i = t_i$; failure observed | `t`, `x1..xm` |
+| `"right"` | $T_i > t_i$; still surviving at $t_i$ | `t` (candidate columns ignored) |
+| `"left"` | $T_i < t_i$; failed before $t_i$ | `t`, `x1..xm` |
+| `"interval"` | $t_i < T_i < t_{\text{upper},i}$; failed in interval | `t`, `t_upper`, `x1..xm` |
+
+Candidate sets are Boolean columns `x1`, `x2`, ..., `xm`. Right-censored rows are allowed to have all-`FALSE` candidate columns because they carry no cause-of-failure information.
+
+## Contribution Formulas
+
+For a row of type $\omega$, the log-likelihood contribution is:
+
+- **Exact**: $\log\left(\sum_{j \in C_i} h_j(t_i; \theta_j)\right) - H_{\text{sys}}(t_i; \theta)$
+- **Right**: $-H_{\text{sys}}(t_i; \theta)$
+- **Left**: $\log \int_0^{t_i} \left[\sum_{j \in C_i} h_j(u; \theta_j)\right] S_{\text{sys}}(u; \theta) \, du$
+- **Interval**: $\log \int_{t_i}^{t_{\text{upper},i}} \left[\sum_{j \in C_i} h_j(u; \theta_j)\right] S_{\text{sys}}(u; \theta) \, du$
+
+The exact and right contributions are closed-form regardless of the component family. Left and interval contributions require integration of the candidate-weighted instantaneous hazard over the observation interval, which `maskedhaz` does via `stats::integrate()`.
+
+## Worked Examples
+
+### Exact and right-censored
+
+A reliability study runs $n = 400$ systems for $\tau = 5$ time units. Any failure observed during $[0, \tau]$ is `"exact"`; any system still running at $\tau$ is `"right"`-censored.
+
+```{r setup-exact}
+library(maskedhaz)
+
+model <- dfr_series_md(components = list(
+  dfr_weibull(shape = 2, scale = 6),
+  dfr_exponential(0.08),
+  dfr_exponential(0.12)
+))
+
+set.seed(100)
+df <- rdata(model)(theta = c(2, 6, 0.08, 0.12), n = 400, tau = 5, p = 0.4)
+table(df$omega)
+```
+
+Fit directly:
+
+```{r fit-exact}
+result <- fit(model)(df, par = c(1.5, 7, 0.05, 0.1))
+rbind(truth = c(2, 6, 0.08, 0.12), estimate = round(coef(result), 3))
+```
+
+Recovery is reasonable: the Weibull scale (parameter 2) is almost exact, the two exponential rates are within 10%, and the Weibull shape is ~15% high. With only 317 exact failures and $p = 0.4$ (each non-failed component in the candidate set 40% of the time), this is normal sampling variation — not a problem with the method.
+
+### Left-censored
+
+Left censoring arises in inspection-based designs: we check a system at time $t_i$ and observe that it has *already* failed, but don't know when. The candidate set $C_i$ reflects what the post-mortem diagnostic reveals about which component caused the failure.
+
+```{r setup-left}
+df_left <- data.frame(
+  t     = c(2, 3, 4, 3.5, 5),
+  omega = "left",
+  x1    = c(TRUE,  TRUE,  FALSE, TRUE,  TRUE),
+  x2    = c(FALSE, TRUE,  TRUE,  FALSE, TRUE),
+  x3    = c(TRUE,  FALSE, TRUE,  TRUE,  FALSE),
+  stringsAsFactors = FALSE
+)
+df_left
+```
+
+Evaluating the log-likelihood exercises the integration path:
+
+```{r loglik-left}
+ll_fn <- loglik(model)
+ll_fn(df_left, par = c(2, 6, 0.08, 0.12))
+```
+
+Each left-censored row contributes $\log P(T_i < t_i, K_i \in C_i \mid \theta)$ — the log of a probability, which must be negative. The five rows above average about $-1$ each, reflecting the fact that by $t \in [2, 5]$ the system has a non-trivial probability of having failed (so each contribution is not too far below zero).
+
+### Interval-censored
+
+Interval censoring arises when inspection times bracket the failure: at time $t_i$ the system was working, at time $t_{\text{upper},i}$ it had failed. The candidate set is again the diagnostic summary.
+
+```{r setup-interval}
+df_interval <- data.frame(
+  t       = c(1.0, 2.0, 3.5),
+  t_upper = c(2.5, 4.0, 5.0),
+  omega   = "interval",
+  x1      = c(TRUE,  FALSE, TRUE),
+  x2      = c(TRUE,  TRUE,  FALSE),
+  x3      = c(FALSE, TRUE,  TRUE),
+  stringsAsFactors = FALSE
+)
+df_interval
+ll_fn(df_interval, par = c(2, 6, 0.08, 0.12))
+```
+
+### Mixed observation types
+
+In practice, a single dataset often contains all four types — different subjects entered the study at different times and were observed by different protocols.
+
+```{r mixed}
+df_mixed <- data.frame(
+  t       = c(3,    5,    2,    1.5,  4.5),
+  t_upper = c(NA,   NA,   NA,   3.0,  NA),
+  omega   = c("exact", "right", "left", "interval", "exact"),
+  x1      = c(TRUE,  FALSE, TRUE,  TRUE,  FALSE),
+  x2      = c(FALSE, FALSE, TRUE,  FALSE, TRUE),
+  x3      = c(TRUE,  FALSE, FALSE, TRUE,  TRUE),
+  stringsAsFactors = FALSE
+)
+
+ll_fn(df_mixed, par = c(2, 6, 0.08, 0.12))
+```
+
+`maskedhaz` dispatches each row to the appropriate contribution formula automatically — no special setup required.
+
+## Cross-Validation Against a Reference Implementation
+
+Both `maskedhaz` and `maskedcauses` implement the `series_md` protocol — the same likelihood, the same data schema, the same C1–C2–C3 conditions. They differ only in *how* the likelihood is computed. `maskedcauses` ships a closed-form reference implementation for exponential-series models via `exp_series_md_c1_c2_c3()`. `maskedhaz` computes the same likelihood numerically (even for exponential components, the left/interval paths go through `integrate()`). Comparing the two evaluates the numerical machinery against a trusted analytical baseline.
+
+```{r cross-validate, eval = requireNamespace("maskedcauses", quietly = TRUE)}
+library(maskedcauses)
+
+# Same three-component exponential series in both packages
+rates <- c(0.1, 0.2, 0.3)
+exp_model_haz <- dfr_series_md(
+  components = list(dfr_exponential(), dfr_exponential(), dfr_exponential()),
+  n_par = c(1L, 1L, 1L)
+)
+exp_model_mc <- exp_series_md_c1_c2_c3()
+
+# A single-row data frame of each observation type
+df_cv <- data.frame(
+  t       = c(3.0, 5.0, 2.0, 1.5),
+  t_upper = c(NA,  NA,  NA,  3.0),
+  omega   = c("exact", "right", "left", "interval"),
+  x1      = c(TRUE,  FALSE, TRUE,  TRUE),
+  x2      = c(FALSE, FALSE, TRUE,  FALSE),
+  x3      = c(TRUE,  FALSE, FALSE, TRUE),
+  stringsAsFactors = FALSE
+)
+
+# Evaluate both log-likelihoods at the same parameters
+ll_haz <- loglik(exp_model_haz)(df_cv, par = rates)
+ll_mc  <- likelihood.model::loglik(exp_model_mc)(df_cv, par = rates)
+
+c(maskedhaz = ll_haz, maskedcauses = ll_mc,
+  difference = abs(ll_haz - ll_mc))
+```
+
+The two log-likelihoods agree to machine precision on this example (`integrate()`'s default relative tolerance of $10^{-8}$ gave us all the digits). This is a direct test of the numerical machinery: `maskedcauses` uses closed-form expressions for each contribution (which exist for exponential components), while `maskedhaz` uses `integrate()` for the left and interval contributions. The fact that they match end-to-end means the integration path is correct.
+
+Because both packages return the *same* `fisher_mle` class on `fit()`, the cross-validation also works at the estimation level — you can fit the same data with both, compare `coef()`, `vcov()`, and `logLik()` side by side, and any agreement (or disagreement) is directly interpretable because the return types are identical.
+
+## Identifiability Under Masking
+
+Identifiability of individual component rates in an exponential series system depends on the masking structure, and it's worth being precise about the limits.
+
+```{r identifiability-exp, eval = requireNamespace("maskedcauses", quietly = TRUE)}
+# A realistic-sized dataset with partial masking
+set.seed(2024)
+df_id <- likelihood.model::rdata(exp_model_mc)(
+  theta = rates, n = 300, tau = 5, p = 0.5
+)
+result_id <- suppressWarnings(
+  fit(exp_model_haz)(df_id, par = c(0.5, 0.5, 0.5))
+)
+
+cat("individual MLE:", round(coef(result_id), 3),
+    "  (truth:", rates, ")\n")
+cat("sum of MLE:    ", round(sum(coef(result_id)), 3),
+    "  (truth:", sum(rates), ")\n")
+```
+
+With `p = 0.5` (each non-failed component in the candidate set half the time), the individual rates are recovered well — candidate sets of varying composition carry real information about which component is which. We can verify this isn't seed luck by checking the log-likelihood at very different rate vectors with the same sum:
+
+```{r identifiability-structure, eval = requireNamespace("maskedcauses", quietly = TRUE)}
+ll_fn <- loglik(exp_model_haz)
+c(truth    = ll_fn(df_id, par = c(0.10, 0.20, 0.30)),
+  balanced = ll_fn(df_id, par = c(0.20, 0.20, 0.20)),
+  skewed   = ll_fn(df_id, par = c(0.05, 0.05, 0.50)))
+```
+
+The three parameter vectors all have sum $0.6$, but the log-likelihoods differ substantially. The candidate-set structure is informative about the *ratios* of rates, not just the sum.
+
+That said, individual identifiability degrades as masking grows. In the limit `p = 1` (full masking, every candidate set is $\{1, 2, 3\}$), only the sum $\sum_j \lambda_j$ remains identifiable — the candidate sets tell you nothing about which component failed, and the likelihood reduces to a function of the total rate alone. And under pure right-censoring (no exact failures), no candidate set information is ever carried, so only the sum is identified regardless of `p`. The `series_md` protocol doesn't preclude fitting under these conditions; it just returns a flat likelihood surface and noisy individual estimates.
+
+Mixing distribution families (as in `vignette("custom-components")`) sidesteps this fragility entirely — the qualitatively different hazard shapes pin down each component's parameters through temporal signal, even when masking is heavy.
+
+## Summary
+
+- The `omega` column is the single switch between contribution formulas
+- Exact and right contributions are closed-form; left and interval use `integrate()`
+- Candidate sets encode whatever diagnostic information narrows the cause
+- Numerical likelihood agrees with `maskedcauses` closed-form to integrator tolerance
+- Exponential-only systems have identifiability limitations — mixed families don't

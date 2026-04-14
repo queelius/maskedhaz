@@ -4,16 +4,14 @@
 \alias{censored_integral}
 \title{Compute integral for left/interval censored contributions}
 \usage{
-censored_integral(h_fns, H_fns, layout, par, C_i, lower, upper, m)
+censored_integral(h_fns, H_fns, par_by_comp, C_i, lower, upper, m)
 }
 \arguments{
 \item{h_fns}{list of hazard closures}
 
 \item{H_fns}{list of cumulative hazard closures}
 
-\item{layout}{parameter layout}
-
-\item{par}{parameter vector}
+\item{par_by_comp}{list of per-component parameter subvectors}
 
 \item{C_i}{logical vector of candidate components}
 
@@ -24,9 +22,11 @@ censored_integral(h_fns, H_fns, layout, par, C_i, lower, upper, m)
 \item{m}{number of components}
 }
 \value{
-numeric integral value
+numeric integral value, or \code{NA_real_} on non-convergence.
 }
 \description{
 Integrates \verb{[sum_\{j in C_i\} h_j(t)] * S_sys(t)} over \verb{(lower, upper)}.
+Returns \code{NA_real_} when \code{\link[stats]{integrate}} fails to converge,
+so the caller can steer the optimizer away from pathological regions.
 }
 \keyword{internal}

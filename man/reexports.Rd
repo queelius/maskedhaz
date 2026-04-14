@@ -21,6 +21,8 @@
 \alias{dfr_gompertz}
 \alias{dfr_loglogistic}
 \alias{cum_haz}
+\alias{conditional_cause_probability}
+\alias{cause_probability}
 \alias{hazard}
 \alias{surv}
 \alias{sampler}
@@ -39,6 +41,8 @@ below to see their documentation.
   \item{generics}{\code{\link[generics]{fit}}}
 
   \item{likelihood.model}{\code{\link[likelihood.model]{assumptions}}, \code{\link[likelihood.model]{hess_loglik}}, \code{\link[likelihood.model]{loglik}}, \code{\link[likelihood.model]{rdata}}, \code{\link[likelihood.model]{score}}}
+
+  \item{maskedcauses}{\code{\link[maskedcauses]{cause_probability}}, \code{\link[maskedcauses]{conditional_cause_probability}}}
 
   \item{serieshaz}{\code{\link[serieshaz]{component}}, \code{\link[serieshaz]{component_hazard}}, \code{\link[serieshaz]{dfr_dist_series}}, \code{\link[serieshaz]{is_dfr_dist_series}}, \code{\link[serieshaz]{ncomponents}}, \code{\link[serieshaz]{param_layout}}, \code{\link[serieshaz]{sample_components}}}
 }}

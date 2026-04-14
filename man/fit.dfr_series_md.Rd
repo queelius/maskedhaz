@@ -22,6 +22,21 @@ component parameters given masked series system data.
 }
 \details{
 Uses \code{\link[stats]{optim}} to maximize the log-likelihood. The score
-function (gradient) is provided for gradient-based methods. The Hessian at
-the MLE is computed for variance-covariance estimation.
+function (gradient) is computed from the same \code{\link{loglik}} closure
+via \code{\link[numDeriv]{grad}}, and the Hessian at the MLE via
+\code{\link[numDeriv]{hessian}}. One-parameter problems auto-upgrade from
+Nelder-Mead to BFGS with a warning, because Nelder-Mead is unreliable in
+one dimension.
+}
+\examples{
+\donttest{
+model <- dfr_series_md(components = list(
+  dfr_exponential(0.1), dfr_exponential(0.2)
+))
+set.seed(1)
+df <- rdata(model)(theta = c(0.1, 0.2), n = 200, tau = 10, p = 0)
+solver <- fit(model)
+result <- solver(df, par = c(0.15, 0.15))
+coef(result)
+}
 }

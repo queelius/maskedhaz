@@ -11,9 +11,23 @@
 #'
 #' @details
 #' Uses \code{\link[stats]{optim}} to maximize the log-likelihood. The score
-#' function (gradient) is provided for gradient-based methods. The Hessian at
-#' the MLE is computed for variance-covariance estimation.
+#' function (gradient) is computed from the same \code{\link{loglik}} closure
+#' via \code{\link[numDeriv]{grad}}, and the Hessian at the MLE via
+#' \code{\link[numDeriv]{hessian}}. One-parameter problems auto-upgrade from
+#' Nelder-Mead to BFGS with a warning, because Nelder-Mead is unreliable in
+#' one dimension.
 #'
+#' @examples
+#' \donttest{
+#' model <- dfr_series_md(components = list(
+#'   dfr_exponential(0.1), dfr_exponential(0.2)
+#' ))
+#' set.seed(1)
+#' df <- rdata(model)(theta = c(0.1, 0.2), n = 200, tau = 10, p = 0)
+#' solver <- fit(model)
+#' result <- solver(df, par = c(0.15, 0.15))
+#' coef(result)
+#' }
 #' @importFrom generics fit
 #' @importFrom likelihood.model fisher_mle
 #' @importFrom stats optim
@@ -22,38 +36,37 @@
 #' @export
 fit.dfr_series_md <- function(object, ...) {
   ll_fn <- loglik(object)
-  s_fn <- score(object)
-  H_fn <- hess_loglik(object)
 
   function(df, par,
            method = c("Nelder-Mead", "BFGS", "SANN", "CG",
                        "L-BFGS-B", "Brent"),
            ..., control = list()) {
     stopifnot(!is.null(par))
-    defaults <- list(fnscale = -1)
-    control <- modifyList(defaults, control)
+    user_picked_method <- !missing(method)
     method <- match.arg(method)
+    control <- modifyList(list(fnscale = -1), control)
 
-    if (length(par) == 1 && method == "Nelder-Mead")
+    if (length(par) == 1 && method == "Nelder-Mead") {
+      if (user_picked_method)
+        warning("Nelder-Mead is unreliable for 1-parameter problems; ",
+                "switching to BFGS.")
       method <- "BFGS"
+    }
+
+    obj <- function(p) ll_fn(df, p)
+    gr  <- function(p) numDeriv::grad(obj, p)
 
     sol <- optim(
-      par = par,
-      fn = function(p) ll_fn(df, p),
-      gr = if (method == "SANN") NULL else function(p) s_fn(df, p),
-      hessian = FALSE,
-      method = method,
-      control = control
+      par = par, fn = obj,
+      gr = if (method == "SANN") NULL else gr,
+      hessian = FALSE, method = method, control = control
     )
-
-    hessian <- H_fn(df, sol$par)
-    score_at_mle <- s_fn(df, sol$par)
 
     fisher_mle(
       par = sol$par,
       loglik_val = sol$value,
-      hessian = hessian,
-      score_val = score_at_mle,
+      hessian = numDeriv::hessian(obj, sol$par),
+      score_val = numDeriv::grad(obj, sol$par),
       nobs = nrow(df),
       converged = (sol$convergence == 0)
     )

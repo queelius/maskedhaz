@@ -1,0 +1,240 @@
+---
+title: "maskedhaz: Masked-Cause Likelihood for General Series Systems"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{maskedhaz: Masked-Cause Likelihood for General Series Systems}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4
+)
+```
+
+## The Problem
+
+A series system with $m$ components fails when *any* component fails. We observe the system failure time $T_i = \min(T_{i1}, \ldots, T_{im})$, but the component that caused the failure is often **masked** — diagnostics only narrow it to a set of candidates $C_i \subseteq \{1, \ldots, m\}$.
+
+Given observations $\{(t_i, C_i)\}$ from $n$ systems, we want to recover the component-level parameters $\theta = (\theta_1, \ldots, \theta_m)$ from system-level data. This is the **masked-cause likelihood problem**, and under masking conditions C1, C2, and C3 it has a clean likelihood form:
+
+$$
+L(\theta) = \prod_{i=1}^{n} S_{\text{sys}}(t_i; \theta) \cdot \sum_{j \in C_i} h_j(t_i; \theta_j)
+$$
+
+where $h_j$ is component $j$'s hazard and $S_{\text{sys}}(t) = \exp(-\sum_j H_j(t))$ is the system survival.
+
+## The `series_md` Protocol and This Implementation
+
+The masked-cause likelihood problem has a protocol package: [`maskedcauses`](https://github.com/queelius/maskedcauses). It specialises the general [`likelihood.model`](https://github.com/queelius/likelihood.model) framework for the masked-series-system setting — adding the `series_md` S3 class (which inherits from `likelihood_model`), the C1–C2–C3 data schema, and domain-specific generics such as `conditional_cause_probability`, `cause_probability`, `component_hazard`, and `ncomponents`. It also ships reference implementations for exponential and Weibull component families as illustrations of the protocol in use; other implementations can be written against the same generics.
+
+`maskedhaz` is such an implementation, for **arbitrary** component hazard functions. The model class `dfr_series_md` inherits from `series_md` — and therefore also from `likelihood_model` — and wraps a `dfr_dist_series` from [`serieshaz`](https://github.com/queelius/serieshaz), which in turn is built from `dfr_dist` components in [`flexhaz`](https://github.com/queelius/flexhaz). Components can be anything: Gompertz aging, log-logistic mid-life peaks, user-defined bathtub curves, or a heterogeneous mixture of all of the above.
+
+Because `dfr_series_md` implements the `likelihood_model` / `series_md` generics, every workflow written against those protocols — loglik evaluation, MLE fitting, diagnostics, simulation, cross-package comparison — works without modification. The implementation choices that distinguish `maskedhaz` from the closed-form reference implementations:
+
+- **Log-likelihood**: closed-form for exact and right-censored rows; numerical integration (`stats::integrate`) for left and interval censoring
+- **Score and Hessian**: numerical differentiation via `numDeriv`
+- **No family restrictions**: any `dfr_dist` component plugs in — no closed-form assumption anywhere
+
+Fitting a model with `fit(model)(df, par)` returns a `fisher_mle` object from `likelihood.model`, which realises the `mle_fit` concept from [`algebraic.mle`](https://github.com/queelius/algebraic.mle). That's what lets the downstream diagnostics — standard errors, bias, FIM, delta-method confidence intervals, MSE — work uniformly across maskedhaz, maskedcauses, and any other likelihood implementation in this ecosystem.
+
+## Quick Tour
+
+```{r quick-tour}
+library(maskedhaz)
+
+# A three-component series system with a mixed-distribution setup
+model <- dfr_series_md(components = list(
+  dfr_weibull(shape = 2, scale = 100),   # wear-out
+  dfr_gompertz(a = 0.001, b = 0.02),     # aging
+  dfr_exponential(0.005)                 # random failure
+))
+
+model
+```
+
+The model knows the parameter layout, the column conventions, and the full series system distribution. Every generic in the likelihood ecosystem dispatches through this one object.
+
+### Step 1: generate data
+
+```{r data}
+set.seed(42)
+rdata_fn <- rdata(model)
+df <- rdata_fn(
+  theta = c(2, 100, 0.001, 0.02, 0.005),  # matches the parameter layout
+  n = 300,
+  tau = 50,       # right-censoring time
+  p = 0.4         # masking probability for non-failed components
+)
+head(df, 3)
+table(df$omega)
+```
+
+A few things to notice in the output. Rows 1 and 2 are right-censored (`omega = "right"`) at exactly `t = tau = 50` — that's the convention for right-censored rows: `t` is the censoring time, and the candidate columns `x1, x2, x3` are all `FALSE` because a right-censored observation carries no information about which component would have caused the (unobserved) failure. Row 3 is an exact failure at `t = 40.45` with all three candidate columns `TRUE` — a legitimate outcome under `p = 0.4` (each non-failing component is included in the candidate set with probability 0.4, so two of them being included has probability $0.4^2 = 0.16$). This is the maximum-masking extreme: we know the system failed and when, but the diagnostic narrowed the cause to "any of the three." The opposite extreme is a singleton candidate set, in which case the cause is fully known.
+
+Candidate sets in general are encoded as Boolean columns (`x1`, `x2`, ..., `xm`). The C1 condition guarantees the true failed component is always `TRUE`; the additional masking depends on the diagnostic procedure (under C1–C2 with uniform masking, `p` is the per-non-failed inclusion probability).
+
+### Step 2: evaluate the log-likelihood
+
+```{r loglik}
+ll_fn <- loglik(model)
+true_par <- c(2, 100, 0.001, 0.02, 0.005)
+ll_fn(df, par = true_par)
+```
+
+`loglik()` is the core generic from the `likelihood.model` package — `maskedhaz` just provides the method for the `dfr_series_md` class. The generic returns a *closure*, not a value: `loglik(model)` gives you a function of `(df, par)` that computes the log-likelihood for that model. This two-step pattern is shared by `score(model)`, `hess_loglik(model)`, `fit(model)`, and `rdata(model)`; once you learn it for one, you have it for all.
+
+The value here (`-790.5` on 300 observations, or roughly $-2.6$ nats per system) is an unremarkable log-likelihood magnitude — nothing about the number itself tells you whether the fit is good. What matters is comparing log-likelihoods *at different parameter values*: the MLE should give a larger loglik than any nearby point, and the curvature around the MLE feeds the asymptotic variance.
+
+### Step 3: fit via MLE
+
+```{r fit}
+solver <- fit(model)
+result <- solver(df, par = c(1.5, 120, 0.0005, 0.015, 0.01))
+```
+
+`fit()` is the generic from `generics` (specialised by `likelihood.model`'s `fit.likelihood_model` and by `maskedhaz`'s `fit.dfr_series_md`). It returns a `fisher_mle` object. Let's put the estimate next to the truth:
+
+```{r fit-compare}
+rbind(truth = true_par, estimate = round(coef(result), 4))
+```
+
+Each parameter is recovered to within a fraction of its standard error — see below. Standard coefficient / variance methods all dispatch through the usual `stats` generics:
+
+```{r mle-methods-basic}
+# 95% Wald confidence intervals — note the Gompertz rows (3 and 4)
+# cross zero. That's a known limitation of Wald intervals near
+# a boundary: the asymptotic normal approximation is too symmetric
+# for parameters bounded below by zero when the SE is comparable
+# to the estimate.
+confint(result)
+```
+
+### Step 4: the fit is a distribution
+
+A `fisher_mle` also realises the `mle_fit` concept from [`algebraic.mle`](https://github.com/queelius/algebraic.mle), which in turn is an `algebraic.dist` distribution (under the standard MLE asymptotic normal approximation). That means you get a second layer of generics "for free" — they weren't implemented by `maskedhaz`, but they work because the class inheritance wires them up. Attach those two packages to bring their generics onto the search path:
+
+```{r ecosystem-load}
+library(algebraic.mle)   # se(), bias(), observed_fim(), mse(), ...
+library(algebraic.dist)  # as_dist(), sampler(), expectation(), cdf(), ...
+```
+
+MLE-algebra generics work directly on the fit:
+
+```{r algebraic-mle}
+se(result)             # standard errors (from algebraic.mle)
+bias(result)           # first-order asymptotic bias — zero for Fisherian MLEs
+observed_fim(result)   # observed Fisher information — the negative Hessian
+```
+
+Because the MLE *is* a distribution (asymptotically multivariate Normal with mean $\theta_0$ and covariance $I(\theta_0)^{-1}$), the `algebraic.dist` generics also apply:
+
+```{r algebraic-dist}
+# Convert to an explicit algebraic.dist object
+mle_dist <- as_dist(result)   # from algebraic.dist
+class(mle_dist)
+
+# The expected value of the sampling distribution is the MLE itself
+expectation(mle_dist)         # from algebraic.dist
+
+# Draw 5 samples from the MLE's sampling distribution
+set.seed(7)
+samp <- sampler(mle_dist)     # from algebraic.dist
+round(samp(5), 4)
+```
+
+Every row above is a plausible "alternative MLE" under the asymptotic approximation. Note that some samples have *negative* values for the Gompertz parameters (columns 3 and 4) — that's not a bug, it's the MVN approximation being symmetric around the MLE when the true parameter space is $(0, \infty)$. For uncertainty propagation over nonlinear functions of the MLE this is usually fine (the probability mass is still concentrated in the feasible region); for simulation-based CIs of boundary-near parameters you'd want a log-reparametrisation or a profile likelihood instead.
+
+The punchline: none of this `algebraic.mle` / `algebraic.dist` machinery knows or cares that `result` came from a masked-cause series-system model. It just sees an `mle_fit`. That's what the layered design buys — each layer provides capabilities that compose uniformly with everything below it.
+
+### Step 5: diagnostics
+
+Once fit, you can ask domain-specific cause-of-failure questions. `conditional_cause_probability` is a `maskedcauses` generic (part of the `series_md` protocol) — `maskedhaz` provides the method for `dfr_series_md`:
+
+```{r diagnostics}
+ccp_fn <- conditional_cause_probability(model)
+ccp_fn(t = c(25, 50), par = coef(result))
+```
+
+At $t = 25$, component 3 (the exponential) has the highest conditional probability ($\approx 0.46$) because the Weibull hazard $h_1(t) = 2t/100^2$ is still small at $t=25$ (about $0.005$) and the Gompertz component has a mild rate. By $t = 50$, the Weibull hazard has grown enough ($\approx 0.01$) that component 1 overtakes — its conditional probability rises to $\approx 0.52$. The Gompertz (component 2) is a minor, steady contributor throughout because its parameters ($a=0.001, b=0.02$) keep its hazard well below the other two on this time scale.
+
+The marginal version averages over the system failure time distribution:
+
+```{r diagnostics-marginal}
+cp_fn <- cause_probability(model)
+set.seed(1)
+cp_fn(par = coef(result), n_mc = 5000)
+```
+
+Roughly: over the population of failed systems, $\approx 48\%$ are caused by the Weibull component, $\approx 34\%$ by the exponential, and $\approx 17\%$ by the Gompertz. The Weibull comes out ahead marginally even though it was second at $t=25$, because the system failure-time distribution has enough mass at later times (where Weibull dominates) to tip the average.
+
+## The Ecosystem
+
+`maskedhaz` sits at the intersection of three stacks — a **protocol stack** defining what a masked-cause likelihood model is, a **component stack** providing the hazard functions inside a series system, and an **MLE result stack** defining what the fit object looks like.
+
+### Protocol stack (model classes)
+
+```
+likelihood.model::likelihood_model
+        ▲
+        │ (specialises)
+maskedcauses::series_md
+        ▲
+        │ (specialises)
+maskedhaz::dfr_series_md
+```
+
+- **[`likelihood.model`](https://github.com/queelius/likelihood.model)** defines the general Fisherian likelihood framework: the `likelihood_model` class and the core generics (`loglik`, `score`, `hess_loglik`, `fim`, `rdata`, `fit`, `assumptions`).
+- **[`maskedcauses`](https://github.com/queelius/maskedcauses)** specialises that framework for masked-series-system problems: the `series_md` subclass, C1–C2–C3 validation, and domain generics (`conditional_cause_probability`, `cause_probability`, `component_hazard`, `ncomponents`). Its exp/Weibull likelihoods are reference implementations; other implementations plug into the same generics.
+- **`maskedhaz`** provides `dfr_series_md`, the `series_md` implementation for systems whose components are arbitrary `dfr_dist` objects.
+
+### Component stack (what goes inside a series system)
+
+```
+flexhaz::dfr_dist          (hazard-first component distributions)
+        │
+        ▼  (composed into)
+serieshaz::dfr_dist_series  (system = sum of component hazards)
+        │
+        ▼  (wrapped by)
+maskedhaz::dfr_series_md    (masked-cause likelihood over that system)
+```
+
+- **[`flexhaz`](https://github.com/queelius/flexhaz)** provides the `dfr_dist` abstraction: define $h(t; \theta)$ and get $S$, $F$, $f$, quantiles, and sampling automatically.
+- **[`serieshaz`](https://github.com/queelius/serieshaz)** composes `dfr_dist` components into a series system where $h_{\text{sys}}(t) = \sum_j h_j(t)$.
+
+### MLE result stack
+
+```
+algebraic.dist::dist        (probability distribution algebra)
+        ▲
+        │ (an MLE IS a distribution, via asymptotic normality)
+algebraic.mle::mle_fit       (MLE concept: coefs, vcov, CIs, delta-method)
+        ▲
+        │ (realised by)
+likelihood.model::fisher_mle  (Fisherian MLE with observed FIM, score at MLE)
+```
+
+A call to `fit(model)(df, par)` produces a `fisher_mle`. Because it inherits `mle_fit`, standard MLE diagnostics — `coef()`, `vcov()`, `confint()`, `se()`, `bias()`, `observed_fim()`, `mse()` — dispatch through the `algebraic.mle` algebra. Because `mle_fit` in turn realises [`algebraic.dist`](https://github.com/queelius/algebraic.dist) (an MLE is a sampling distribution, approximately multivariate Normal under standard theory), you can also `density()`, `cdf()`, `expectation()`, and sample from a fitted model — composing it with other distributions, propagating uncertainty, and so on. The same `fisher_mle` returned by `maskedhaz`, `maskedcauses`, or any other implementation plugs into all of this uniformly.
+
+## Where to Go Next
+
+- **`vignette("custom-components", package = "maskedhaz")`** — a worked example with components that have no closed-form likelihood: Gompertz aging, log-logistic early failure, and how the numerical-integration path handles them transparently.
+- **`vignette("censoring-and-masking", package = "maskedhaz")`** — all four observation types (`exact`, `right`, `left`, `interval`) with realistic examples, plus a cross-validation check against `maskedcauses` for the exponential case.
+- **`?dfr_series_md`** — constructor reference, including the data-column naming conventions.
+
+## Assumptions
+
+`maskedhaz` inherits the classical C1-C2-C3 assumptions from the foundational masked-cause literature:
+
+```{r assumptions}
+assumptions(model)
+```
+
+These hold in most practical reliability scenarios where candidate sets come from unbiased diagnostic procedures. If your data-generating process violates them (e.g., mechanics preferentially blame the cheapest component), you need relaxed-masking extensions — see [`mdrelax`](https://github.com/queelius/mdrelax).

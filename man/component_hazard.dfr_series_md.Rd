@@ -19,3 +19,10 @@ A closure computing component j's hazard.
 \description{
 Component hazard for a masked-cause DFR series system
 }
+\examples{
+model <- dfr_series_md(components = list(
+  dfr_exponential(0.1), dfr_exponential(0.2)
+))
+h1 <- component_hazard(model, 1)
+h1(t = 5, par = 0.1)   # 0.1 (constant exponential hazard)
+}

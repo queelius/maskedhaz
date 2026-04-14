@@ -17,7 +17,6 @@ matching columns found
 }
 \description{
 Extracts Boolean columns matching the pattern \code{prefix + digits} from a
-data frame and assembles them into a logical matrix. This replaces
-\code{md.tools::md_decode_matrix()} to avoid the dependency.
+data frame and assembles them into a logical matrix.
 }
 \keyword{internal}

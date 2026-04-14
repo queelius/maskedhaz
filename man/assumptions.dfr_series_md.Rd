@@ -17,3 +17,9 @@ Character vector of model assumptions.
 \description{
 Assumptions for masked-cause DFR series systems
 }
+\examples{
+model <- dfr_series_md(components = list(
+  dfr_exponential(0.1), dfr_exponential(0.2)
+))
+assumptions(model)
+}

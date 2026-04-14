@@ -33,7 +33,16 @@ Log-likelihood contributions by observation type:
 \eqn{\log L_i = \log \int_{t_i}^{t_{upper,i}} [\sum_{j \in C_i} h_j(u)] S_{sys}(u) \, du}}
 }
 
-The exact and right-censored paths use direct hazard/cumulative hazard
-calls. Left and interval censoring require numerical integration via
-\code{\link[stats]{integrate}}.
+The exact and right-censored paths use vectorized hazard / cumulative hazard
+calls. Left and interval censoring require per-row numerical integration
+via \code{\link[stats]{integrate}}.
+}
+\examples{
+model <- dfr_series_md(components = list(
+  dfr_exponential(0.1), dfr_exponential(0.2)
+))
+set.seed(1)
+df <- rdata(model)(theta = c(0.1, 0.2), n = 50, tau = 10, p = 0.3)
+ll_fn <- loglik(model)
+ll_fn(df, par = c(0.1, 0.2))
 }

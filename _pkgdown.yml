@@ -5,12 +5,35 @@ template:
 
 navbar:
   structure:
-    left:  [intro, reference, news]
+    left:  [intro, reference, articles, news]
     right: [search, github]
   components:
+    articles:
+      text: Articles
+      menu:
+        - text: "Package overview"
+          href: articles/maskedhaz.html
+        - text: "Mixed-distribution series systems"
+          href: articles/custom-components.html
+        - text: "Censoring types and masked causes"
+          href: articles/censoring-and-masking.html
+        - text: "Hypothesis testing on fitted models"
+          href: articles/hypothesis-tests.html
     github:
       icon: fa-github
       href: https://github.com/queelius/maskedhaz
+
+articles:
+  - title: "Getting Started"
+    navbar: ~
+    contents:
+      - maskedhaz
+  - title: "Topics"
+    navbar: "Topics"
+    contents:
+      - custom-components
+      - censoring-and-masking
+      - hypothesis-tests
 
 reference:
   - title: "Model Constructor"
@@ -36,8 +59,8 @@ reference:
   - title: "Diagnostics"
     desc: "Cause-of-failure probabilities and model inspection"
     contents:
-      - conditional_cause_probability
-      - cause_probability
+      - conditional_cause_probability.dfr_series_md
+      - cause_probability.dfr_series_md
       - assumptions.dfr_series_md
       - ncomponents.dfr_series_md
       - component_hazard.dfr_series_md

@@ -62,8 +62,16 @@ flexhaz::dfr_loglogistic
 #' @export
 flexhaz::cum_haz
 
+# Re-exports from maskedcauses (series_md protocol generics)
+#' @importFrom maskedcauses conditional_cause_probability cause_probability
+#' @export
+maskedcauses::conditional_cause_probability
+
+#' @export
+maskedcauses::cause_probability
+
 # Re-exports from algebraic.dist (via serieshaz)
-#' @importFrom algebraic.dist hazard surv cdf sampler params
+#' @importFrom algebraic.dist hazard surv sampler params
 #' @export
 algebraic.dist::hazard
 

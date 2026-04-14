@@ -15,3 +15,10 @@ Logical scalar.
 \description{
 Test whether an object is a dfr_series_md
 }
+\examples{
+model <- dfr_series_md(components = list(
+  dfr_exponential(0.1), dfr_exponential(0.2)
+))
+is_dfr_series_md(model)    # TRUE
+is_dfr_series_md(42)       # FALSE
+}

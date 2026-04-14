@@ -7,3 +7,4 @@
 ^pkgdown$
 ^\.github$
 ^CLAUDE\.md$
+^cran-comments\.md$
