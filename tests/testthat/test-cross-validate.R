@@ -1,6 +1,4 @@
 test_that("loglik matches exp_series_md_c1_c2_c3 on exact data", {
-  skip_if_not_installed("maskedcauses")
-
   par <- c(0.1, 0.2, 0.3)
 
   # Generate data using the reference model
@@ -24,8 +22,6 @@ test_that("loglik matches exp_series_md_c1_c2_c3 on exact data", {
 })
 
 test_that("loglik matches exp_series_md_c1_c2_c3 on censored data", {
-  skip_if_not_installed("maskedcauses")
-
   par <- c(0.1, 0.2, 0.3)
 
   ref_model <- maskedcauses::exp_series_md_c1_c2_c3()
@@ -46,8 +42,6 @@ test_that("loglik matches exp_series_md_c1_c2_c3 on censored data", {
 })
 
 test_that("MLE point estimates match reference on same dataset", {
-  skip_if_not_installed("maskedcauses")
-
   par <- c(0.1, 0.2, 0.3)
 
   ref_model <- maskedcauses::exp_series_md_c1_c2_c3()
@@ -74,8 +68,6 @@ test_that("MLE point estimates match reference on same dataset", {
 })
 
 test_that("loglik matches at multiple parameter values", {
-  skip_if_not_installed("maskedcauses")
-
   # Generate shared dataset
   ref_model <- maskedcauses::exp_series_md_c1_c2_c3()
   ref_rdata <- likelihood.model::rdata(ref_model)
@@ -104,8 +96,6 @@ test_that("loglik matches at multiple parameter values", {
 })
 
 test_that("loglik matches 2-component exponential reference", {
-  skip_if_not_installed("maskedcauses")
-
   par <- c(0.5, 1.0)
 
   ref_model <- maskedcauses::exp_series_md_c1_c2_c3()
