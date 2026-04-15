@@ -44,6 +44,6 @@ below to see their documentation.
 
   \item{maskedcauses}{\code{\link[maskedcauses]{cause_probability}}, \code{\link[maskedcauses]{conditional_cause_probability}}}
 
-  \item{serieshaz}{\code{\link[serieshaz]{component}}, \code{\link[serieshaz]{component_hazard}}, \code{\link[serieshaz]{dfr_dist_series}}, \code{\link[serieshaz]{is_dfr_dist_series}}, \code{\link[serieshaz]{ncomponents}}, \code{\link[serieshaz]{param_layout}}, \code{\link[serieshaz]{sample_components}}}
+  \item{serieshaz}{\code{\link[serieshaz:reexports]{component}}, \code{\link[serieshaz]{component_hazard}}, \code{\link[serieshaz]{dfr_dist_series}}, \code{\link[serieshaz]{is_dfr_dist_series}}, \code{\link[serieshaz:reexports]{ncomponents}}, \code{\link[serieshaz]{param_layout}}, \code{\link[serieshaz]{sample_components}}}
 }}
 

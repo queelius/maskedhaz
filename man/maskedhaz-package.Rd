@@ -4,9 +4,9 @@
 \name{maskedhaz-package}
 \alias{maskedhaz}
 \alias{maskedhaz-package}
-\title{maskedhaz: Masked-Cause Likelihood Models for DFR Series Systems}
+\title{maskedhaz: Masked-Cause Likelihood Models for Series Systems with Arbitrary Hazard Components}
 \description{
-Likelihood-based inference for series systems with masked component cause of failure, using arbitrary dynamic failure rate (DFR) component distributions. Computes log-likelihood, score, Hessian, and MLE for masked data satisfying conditions C1, C2, C3 under general component hazard functions.
+Likelihood-based inference for series systems with masked component cause of failure, using arbitrary dynamic failure rate component distributions. Computes log-likelihood, score, Hessian, and maximum likelihood estimates for masked data satisfying conditions C1, C2, C3 under general component hazard functions. Implements the 'series_md' protocol defined in the 'maskedcauses' package.
 }
 \details{
 The \pkg{maskedhaz} package provides likelihood-based inference for

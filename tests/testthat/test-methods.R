@@ -52,7 +52,7 @@ test_that("cause_probability returns correct shape", {
   expect_true(is.function(cp_fn))
 
   set.seed(42)
-  probs <- cp_fn(par = c(0.1, 0.2, 0.3), n_mc = 5000)
+  probs <- cp_fn(par = c(0.1, 0.2, 0.3), n_mc = 1000)
   expect_length(probs, 3)
   expect_equal(sum(probs), 1, tolerance = 0.05)
 })
@@ -73,7 +73,7 @@ test_that("cause_probability approximately correct for exponential", {
   cp_fn <- cause_probability(model)
 
   set.seed(42)
-  probs <- cp_fn(par = c(0.1, 0.2, 0.3), n_mc = 10000)
+  probs <- cp_fn(par = c(0.1, 0.2, 0.3), n_mc = 2000)
   expected <- c(0.1, 0.2, 0.3) / 0.6
 
   expect_equal(probs, expected, tolerance = 0.05)

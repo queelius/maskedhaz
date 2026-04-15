@@ -26,6 +26,15 @@
 #' calls. Left and interval censoring require per-row numerical integration
 #' via \code{\link[stats]{integrate}}.
 #'
+#' The returned closure caches validated and decoded masked-data extracted
+#' from the data frame across repeated calls with the same \code{df}, so that
+#' the O(n) validation cost is paid only once per \code{optim}/\code{numDeriv}
+#' sweep. The cache is per-closure, kept in the closure's enclosing
+#' environment. This is safe for sequential use; if you share the same
+#' closure object across forked workers (e.g. \code{parallel::mcparallel}),
+#' concurrent writes to the cache are possible but only affect performance,
+#' not correctness.
+#'
 #' @examples
 #' model <- dfr_series_md(components = list(
 #'   dfr_exponential(0.1), dfr_exponential(0.2)
@@ -139,7 +148,7 @@ censored_integral <- function(h_fns, H_fns, par_by_comp, C_i,
     }
     h_cand * exp(-H_sys)
   }
-  result <- try(integrate(integrand, lower, upper, rel.tol = 1e-8,
+  result <- try(integrate(integrand, lower, upper, rel.tol = 1e-6,
                           stop.on.error = FALSE), silent = TRUE)
   if (inherits(result, "try-error") || result$message != "OK") return(NA_real_)
   result$value

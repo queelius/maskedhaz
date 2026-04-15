@@ -36,6 +36,15 @@ Log-likelihood contributions by observation type:
 The exact and right-censored paths use vectorized hazard / cumulative hazard
 calls. Left and interval censoring require per-row numerical integration
 via \code{\link[stats]{integrate}}.
+
+The returned closure caches validated and decoded masked-data extracted
+from the data frame across repeated calls with the same \code{df}, so that
+the O(n) validation cost is paid only once per \code{optim}/\code{numDeriv}
+sweep. The cache is per-closure, kept in the closure's enclosing
+environment. This is safe for sequential use; if you share the same
+closure object across forked workers (e.g. \code{parallel::mcparallel}),
+concurrent writes to the cache are possible but only affect performance,
+not correctness.
 }
 \examples{
 model <- dfr_series_md(components = list(

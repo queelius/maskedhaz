@@ -147,6 +147,7 @@ is_dfr_series_md <- function(x) {
 #'   dfr_exponential(0.05)
 #' ))
 #' print(model)
+#' @method print dfr_series_md
 #' @export
 print.dfr_series_md <- function(x, ...) {
   series <- x$series
